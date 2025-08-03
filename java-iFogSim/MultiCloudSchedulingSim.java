@@ -19,7 +19,8 @@ import org.fog.application.AppModule;
 import org.fog.application.selectivity.FractionalSelectivity;
 import org.fog.entities.*;
 import org.fog.policy.AppModuleAllocationPolicy;
-import org.fog.scheduler.RoundRobinScheduler;
+//import org.fog.scheduler.RoundRobinScheduler;
+import org.fog.scheduler.FCFScheduler;
 import org.fog.scheduler.StreamOperatorScheduler;
 import org.fog.utils.*;
 import org.fog.placement.*;
@@ -38,7 +39,8 @@ public class MultiCloudSchedulingSim {
     public static void main(String[] args) {
         Log.printLine("=== Starting Multi-Cloud Scheduling Simulation with Round Robin ===");
         try {
-            csvWriter = new FileWriter("round_robin_log.csv");
+            //csvWriter = new FileWriter("round_robin_log.csv");
+            csvWriter = new FileWriter("fcfs_log.csv");
             csvWriter.append("TaskID,SelectedCloud,StartTime,EndTime,ExecutionTime,CPUCost,SLADuration,SLAMet\n");
 
             CloudSim.init(1, Calendar.getInstance(), false);
@@ -125,7 +127,9 @@ public class MultiCloudSchedulingSim {
                     double startTime = CloudSim.clock();
 
                     // 🌐 ROUND ROBIN LOGIC
-                    int selectedCloud = RoundRobinScheduler.getNextCloudIndex(cloudProviders);
+                    // int selectedCloud = RoundRobinScheduler.getNextCloudIndex(cloudProviders);
+                    // 🌐 FCFS LOGIC
+                    int selectedCloud = FCFScheduler.getLeastLoadedCloudIndex(cloudProviders);
                     FogDevice selectedDevice = cloudProviders.get(selectedCloud);
 
                     double selectedMips = selectedDevice.getHost().getTotalMips();
