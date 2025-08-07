@@ -35,6 +35,9 @@ while True:
         action, _ = model.predict(state)
         response = str(int(action))
 
+               # ✅ Print the predicted cloud index
+        print(f"🧠 Predicted Cloud Index: {response}")
+
         # Send response
         client.send(response.encode())
 
