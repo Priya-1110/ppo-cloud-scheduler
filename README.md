@@ -1,9 +1,3 @@
-Got it — you want a **README.md** for your thesis project, the PPO-based multi-cloud scheduling system built with iFogSim2 + Python (Stable-Baselines3 PPO) + socket integration, with evaluation vs RR, FCFS, DQN, and A2C, plus a Streamlit dashboard.
-
-Here’s a **polished README draft** tailored for your project:
-
----
-
 # 🚀 Real-Time, Cost-Aware Resource Scheduling in Multi-Cloud Systems Using PPO
 
 ## 📌 Overview
