@@ -1,3 +1,17 @@
+# ============================================================
+# Title: Multi-Cloud Scheduling Evaluation Dashboard (Streamlit)
+# Purpose:
+#   - Load experiment logs for PPO, A2C, DQN, FCFS, Round Robin
+#   - Visualize SLA %, cost, execution time, reward, trends, and explainability
+# Inputs (expected under ./results/):
+#   - ppo_log.csv, A2C_log.csv, dqn_log.csv, fcfs_log.csv, round_robin_log.csv
+#   - explainability_table.csv  (for the Explainability table page)
+# Output:
+#   - Interactive dashboard with sidebar navigation
+# Notes:
+#   - Designed for dark theme; Plotly/Seaborn figures embedded in Streamlit
+# ============================================================
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -17,7 +31,7 @@ st.markdown(f"""
     <h1 style='color:{theme_color};'>🚀 Multi-Cloud Scheduling Evaluation Dashboard</h1>
 """, unsafe_allow_html=True)
 
-# ✅ Load logs
+# ✅ Load logs from the ./results folder
 def load_data():
     base_path = "results"
     return {
@@ -30,11 +44,12 @@ def load_data():
 
 model_data = load_data()
 
-# ✅ PPO color map
+# ✅ PPO highlight color map (keeps others muted)
 color_map = {"PPO": "green", "A2C": "gray", "DQN": "gray", "FCFS": "gray", "Round Robin": "gray"}
 
 # 📊 SLA Compliance %
 def sla_chart():
+    # Compute SLA% per model
     sla_values = {m: (df['SLAMet'].astype(str).str.upper() == "YES").mean()*100 for m, df in model_data.items()}
     df = pd.DataFrame(list(sla_values.items()), columns=["Model", "SLA Compliance %"])
     fig = px.bar(df, x="Model", y="SLA Compliance %", title="✅ SLA Compliance %", color="Model", color_discrete_map=color_map)
@@ -52,7 +67,7 @@ def exec_chart():
     fig = px.bar(df, x="Model", y="Avg Execution Time", title="⏱️ Average Execution Time", color="Model", color_discrete_map=color_map)
     st.plotly_chart(fig, use_container_width=True)
 
-# 🎯 Reward Score
+# 🎯 Reward Score (simple proxy: SLA hit minus cost penalty) for RL models
 def reward_chart():
     rewards = {}
     for model in ["PPO", "A2C", "DQN"]:
@@ -62,15 +77,15 @@ def reward_chart():
     fig = px.bar(df, x="Model", y="Avg Reward Score", title="🎯 Avg Reward Score", color="Model", color_discrete_map=color_map)
     st.plotly_chart(fig, use_container_width=True)
 
-# 📈 PPO SLA Trend
+# 📈 PPO SLA Trend over batches
 def sla_trend_chart():
-    df = model_data["PPO"]
+    df = model_data["PPO"].copy()
     df["Batch"] = df.index // 10
     df_trend = df.groupby("Batch")["SLAMet"].apply(lambda x: (x == "YES").mean()*100).reset_index()
     fig = px.line(df_trend, x="Batch", y="SLAMet", title="📈 PPO SLA Trend Over Time")
     st.plotly_chart(fig, use_container_width=True)
 
-# ☁️ PPO Cloud Usage
+# ☁️ PPO Cloud Usage distribution
 def cloud_usage_chart():
     df = model_data["PPO"]
     clouds = df["SelectedCloud"].map({0: "AWS", 1: "Azure", 2: "GCP"}).value_counts().reset_index()
@@ -78,22 +93,24 @@ def cloud_usage_chart():
     fig = px.pie(clouds, values="Count", names="Cloud", title="☁️ PPO Cloud Selection")
     st.plotly_chart(fig, use_container_width=True)
 
-# 🔥 SLA Violation Heatmap
+# 🔥 SLA Violation Heatmap for PPO
 def violation_heatmap():
-    df = model_data["PPO"]
+    df = model_data["PPO"].copy()
     df["SLAMet"] = df["SLAMet"].astype(str).str.upper().map({"YES": 1, "NO": 0})
     df["Cloud"] = df["SelectedCloud"].map({0: "AWS", 1: "Azure", 2: "GCP"})
     df["TaskGroup"] = pd.cut(df["TaskID"], bins=10, labels=[f"G{i}" for i in range(1, 11)])
+    # Pivot to % violations (100 - SLA%)
     heatmap_data = df.pivot_table(index="Cloud", columns="TaskGroup", values="SLAMet", aggfunc=lambda x: 100 - x.mean()*100)
     fig, ax = plt.subplots()
     sns.heatmap(heatmap_data, annot=True, cmap="coolwarm", fmt=".1f", cbar_kws={'label': '% SLA Violations'}, ax=ax)
     ax.set_title("🔴 PPO SLA Violation Heatmap")
     st.pyplot(fig)
 
-# 📦 Task Distribution Boxplot
+# 📦 Variance across tasks (execution time & cost) per model
 def task_boxplot():
     dfs = []
     for name, df in model_data.items():
+        df = df.copy()
         df["Model"] = name
         dfs.append(df)
     all_df = pd.concat(dfs)
@@ -102,13 +119,13 @@ def task_boxplot():
     st.plotly_chart(fig1, use_container_width=True)
     st.plotly_chart(fig2, use_container_width=True)
 
-# 🧠 Explainability Table
+# 🧠 Explainability Table (prebuilt CSV)
 def explain_table():
     df = pd.read_csv("results/explainability_table.csv")
     st.subheader("🧠 Explainability Table")
     st.dataframe(df)
 
-# ✅ Final Verdict
+# ✅ Final Verdict (summary text block)
 def final_summary():
     with st.expander("📌 Final Verdict"):
         st.success("✅ PPO achieved the highest SLA %, lowest average cost, best reward scores, and most balanced cloud usage — proving its superiority as a real-time cloud scheduler.")
@@ -122,7 +139,7 @@ page = st.sidebar.radio("Choose a Metric", [
     "Explainability Table", "Conclusion"
 ])
 
-# 🔁 Router
+# 🔁 Router (call the appropriate chart/section)
 if page == "SLA Compliance %": sla_chart()
 elif page == "Average CPU Cost": cost_chart()
 elif page == "Execution Time": exec_chart()
